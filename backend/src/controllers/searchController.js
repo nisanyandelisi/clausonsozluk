@@ -74,23 +74,24 @@ exports.search = async (req, res) => {
       params.push(limitCount, offset);
 
     } else if (searchIn === 'meaning') {
-      // Anlam bazlı arama - normalize_word kullanarak
-      // normalize_word fonksiyonu I/İ dönüşümlerini ve noktalama işaretlerini halleder.
-
+      // Anlam bazlı arama - full text + ILIKE (trigram) ile hızlı sorgu
       const whereClause = `(
-        normalize_word(meaning) LIKE '%' || normalize_word($1) || '%'
-        OR 
-        normalize_word(COALESCE(full_entry_text, '')) LIKE '%' || normalize_word($1) || '%'
+        to_tsvector('english', COALESCE(meaning, '')) @@ plainto_tsquery('english', regexp_replace($1, '\\\\s+', ' & ', 'g'))
+        OR meaning ILIKE '%' || $1 || '%'
+        OR COALESCE(full_entry_text, '') ILIKE '%' || $1 || '%'
       )`;
 
       query = `
         SELECT *,
-          CASE 
-            WHEN normalize_word(meaning) LIKE normalize_word($1) THEN 100 -- Tam eşleşme (normalize edilmiş)
-            WHEN normalize_word(meaning) LIKE normalize_word($1) || '%' THEN 90 -- Başlangıç
-            WHEN normalize_word(meaning) LIKE '%' || normalize_word($1) || '%' THEN 80 -- İçerir
-            ELSE 50
-          END as relevance
+          GREATEST(
+            ts_rank_cd(to_tsvector('english', COALESCE(meaning, '')), plainto_tsquery('english', regexp_replace($1, '\\\\s+', ' & ', 'g'))),
+            CASE
+              WHEN meaning ILIKE $1 THEN 0.9
+              WHEN meaning ILIKE $1 || '%' THEN 0.8
+              WHEN meaning ILIKE '%' || $1 || '%' THEN 0.7
+              ELSE 0.5
+            END
+          ) as relevance
         FROM words
         WHERE ${whereClause}
       `;
