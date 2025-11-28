@@ -155,8 +155,10 @@ router.post('/import-data', async (req, res) => {
     const util = require('util');
     const execPromise = util.promisify(exec);
 
-    // Render path: /opt/render/project/src/backend/scripts/import_data.py
-    const result = await execPromise('cd /opt/render/project/src/backend && python3 scripts/import_data.py');
+    // Node.js import script
+    const result = await execPromise('cd /opt/render/project/src/backend && node scripts/import_data.js', {
+      timeout: 300000 // 5 dakika timeout
+    });
 
     res.json({
       success: true,
