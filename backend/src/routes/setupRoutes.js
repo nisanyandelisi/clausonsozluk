@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || (!isProd ? 'teneke' : null);
 const setupAllowed = process.env.ALLOW_SETUP_ROUTES === 'true' || !isProd;
 
 const requireSetupAccess = (req, res, next) => {

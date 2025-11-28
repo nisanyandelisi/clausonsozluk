@@ -188,13 +188,6 @@ function App() {
     return text.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
   };
 
-  // Admin paneli açıldığında raporları otomatik çek
-  useEffect(() => {
-    if (showAdminPanel && adminPasscode) {
-      fetchAdminReports();
-    }
-  }, [showAdminPanel, adminPasscode]);
-
   // Edit İşlemleri
   const handleEditClick = (word) => {
     setEditForm({ ...word });

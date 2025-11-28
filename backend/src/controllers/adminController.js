@@ -1,6 +1,7 @@
 const { pool } = require('../config/database');
 
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
+const isProd = process.env.NODE_ENV === 'production';
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || (!isProd ? 'teneke' : null);
 
 const ensureAdmin = (req) => {
   const provided = req.headers['x-admin-passcode'] || req.body.passcode;

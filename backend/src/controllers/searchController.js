@@ -1,6 +1,26 @@
 const { pool } = require('../config/database');
 const isProd = process.env.NODE_ENV === 'production';
 
+const sanitizeWordExpr = `REGEXP_REPLACE(word, '^[0-9\\s:\\-*?''()\\[\\]/.,;]+', '')`;
+
+const buildLetterPrefixes = (letter) => {
+  if (!letter) return [];
+  const l = letter.toString();
+
+  // Türkçe özel harf ayrımları
+  switch (l) {
+    case 'Ç': return ['Ç', 'ç'];
+    case 'Ğ': return ['Ğ', 'ğ'];
+    case 'Ş': return ['Ş', 'ş'];
+    case 'Ö': return ['Ö', 'ö'];
+    case 'Ü': return ['Ü', 'ü'];
+    case 'I': return ['I', 'ı']; // Noktasız
+    case 'İ': return ['İ', 'i']; // Noktalı
+    default:
+      return [l.toLowerCase(), l.toUpperCase()];
+  }
+};
+
 /**
  * Ana arama endpoint'i
  * Türkçe ve İngilizce aramaları destekler
@@ -98,13 +118,15 @@ exports.search = async (req, res) => {
 
       switch (searchMode) {
         case 'startsWith': {
-          const wantsCaseSensitiveI = isLetterMode && ['I', 'İ'].includes(searchTerm);
-          if (wantsCaseSensitiveI) {
-            whereClause = `word LIKE $1 || '%'`;
+          if (isLetterMode) {
+            const prefixes = buildLetterPrefixes(searchTerm);
+            const likePatterns = prefixes.map(p => `${p}%`);
+            whereClause = `${sanitizeWordExpr} LIKE ANY($1) AND ${sanitizeWordExpr} <> ''`;
+            params = [likePatterns];
           } else {
             whereClause = `word_normalized LIKE normalize_word($1) || '%'`;
+            params = [searchTerm];
           }
-          params = [searchTerm];
           break;
         }
         case 'startsWithExact':
