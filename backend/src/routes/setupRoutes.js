@@ -22,8 +22,8 @@ router.post('/init-schema', async (req, res) => {
       });
     }
 
-    // Schema'yı yükle
-    const schemaPath = path.join(__dirname, '../../database/schema.sql');
+    // Schema'yı yükle (basitleştirilmiş versiyon)
+    const schemaPath = path.join(__dirname, '../../database/schema-simple.sql');
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
     await pool.query(schemaSql);
