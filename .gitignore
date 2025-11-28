@@ -40,6 +40,8 @@ coverage/
 .cache/
 temp/
 
-# Deployment guides (opsiyonel - bunları da gizlemek istersen yorumu kaldır)
-# RENDER_DEPLOYMENT_GUIDE.md
-# DEPLOY_SIMDI.md
+# Deployment docs and scripts
+*.md
+!README.md
+*.sh
+backend/scripts/*.sh
