@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import Counter
 
 def analyze_data():
-    data_dir = Path("/home/logos/0-Clauson/Clauson-Sozluk/Datas")
+    data_dir = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parents[2] / "Datas")).resolve()
     all_chars = Counter()
     etymology_types = Counter()
     

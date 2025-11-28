@@ -318,7 +318,8 @@ def main():
     print()
 
     # JSON dizini
-    json_dir = Path("/home/logos/0-Clauson/Clauson-Sozluk/Datas") # Düzeltildi: Datas klasörü
+    default_data_dir = Path(__file__).resolve().parents[2] / "Datas"
+    json_dir = Path(os.getenv("DATA_DIR", default_data_dir)).resolve()
     if not json_dir.exists():
         print(f"❌ Hata: {json_dir} bulunamadı!")
         sys.exit(1)
