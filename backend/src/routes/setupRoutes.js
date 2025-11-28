@@ -155,7 +155,8 @@ router.post('/import-data', async (req, res) => {
     const util = require('util');
     const execPromise = util.promisify(exec);
 
-    const result = await execPromise('cd /opt/render/project/src && python3 ../../scripts/import_data.py');
+    // Render path: /opt/render/project/src/backend/scripts/import_data.py
+    const result = await execPromise('cd /opt/render/project/src/backend && python3 scripts/import_data.py');
 
     res.json({
       success: true,
