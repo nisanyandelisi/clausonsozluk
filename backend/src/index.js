@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const searchRoutes = require('./routes/searchRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const setupRoutes = require('./routes/setupRoutes');
 const { pool } = require('./config/database');
 
 const app = express();
@@ -19,7 +20,7 @@ app.use(compression()); // Response compression
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://your-username.github.io', // GitHub Pages URL'inizi buraya yazın
+  'https://nisanyandelisi.github.io',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
@@ -70,6 +71,7 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/search', searchRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/setup', setupRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
