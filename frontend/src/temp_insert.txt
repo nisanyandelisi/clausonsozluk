@@ -1,7 +1,0 @@
-
-  // Admin paneli açıldığında raporları otomatik çek
-  useEffect(() => {
-    if (showAdminPanel && adminPasscode === 'teneke') {
-      fetchAdminReports();
-    }
-  }, [showAdminPanel, adminPasscode]);

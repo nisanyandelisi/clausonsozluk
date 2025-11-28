@@ -1,5 +1,21 @@
 const { pool } = require('../config/database');
 
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
+
+const ensureAdmin = (req) => {
+    const provided = req.headers['x-admin-passcode'] || req.body.passcode;
+
+    if (!ADMIN_PASSCODE) {
+        return { ok: false, status: 503, message: 'Admin erişimi devre dışı (passcode tanımlı değil).' };
+    }
+
+    if (!provided || provided !== ADMIN_PASSCODE) {
+        return { ok: false, status: 403, message: 'Yetkisiz erişim.' };
+    }
+
+    return { ok: true };
+};
+
 /**
  * Rapor oluştur
  */
@@ -49,13 +65,11 @@ exports.createReport = async (req, res) => {
  */
 exports.getReports = async (req, res) => {
     try {
-        const { passcode } = req.query;
-
-        // Basit yetki kontrolü
-        if (passcode !== 'teneke') {
-            return res.status(403).json({
+        const auth = ensureAdmin(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({
                 success: false,
-                error: 'Yetkisiz erişim.'
+                error: auth.message
             });
         }
 
@@ -88,12 +102,13 @@ exports.getReports = async (req, res) => {
 exports.updateReportStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, passcode } = req.body;
+        const { status } = req.body;
 
-        if (passcode !== 'teneke') {
-            return res.status(403).json({
+        const auth = ensureAdmin(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({
                 success: false,
-                error: 'Yetkisiz erişim.'
+                error: auth.message
             });
         }
 
@@ -122,12 +137,11 @@ exports.updateReportStatus = async (req, res) => {
 exports.deleteReport = async (req, res) => {
     try {
         const { id } = req.params;
-        const { passcode } = req.body;
-
-        if (passcode !== 'teneke') {
-            return res.status(403).json({
+        const auth = ensureAdmin(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({
                 success: false,
-                error: 'Yetkisiz erişim.'
+                error: auth.message
             });
         }
 

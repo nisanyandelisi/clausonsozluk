@@ -4,7 +4,7 @@ import axios from 'axios'
 // Development: localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
-    ? 'https://clauson-backend.onrender.com'
+    ? 'https://clausonsozluk.onrender.com'
     : 'http://localhost:3000')
 
 const api = axios.create({

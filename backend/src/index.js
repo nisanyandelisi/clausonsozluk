@@ -125,7 +125,9 @@ app.listen(PORT, () => {
   console.log('='.repeat(70));
   console.log(`✓ Server çalışıyor: http://localhost:${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✓ Database: ${process.env.DB_NAME}@${process.env.DB_HOST}`);
+  if (process.env.DB_NAME) {
+    console.log(`✓ Database: ${process.env.DB_NAME}`);
+  }
   console.log('='.repeat(70) + '\n');
 });
 

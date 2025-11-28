@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const isProd = process.env.NODE_ENV === 'production';
 
 /**
  * Ana arama endpoint'i
@@ -14,7 +15,8 @@ exports.search = async (req, res) => {
       fuzzy = '0.3',              // Fuzzy matching threshold (0-1)
       limit = '15',               // Default limit 15
       page = '1',                 // Default page 1
-      etymology                    // Etimoloji tipine göre filtre (opsiyonel)
+      etymology,                  // Etimoloji tipine göre filtre (opsiyonel)
+      letterMode                  // Harf şeridi filtresi (case-sensitive ayrım için)
     } = req.query;
 
     // Validasyon - Artık boş Q'ya izin veriyoruz (Tümünü listeleme için)
@@ -34,6 +36,8 @@ exports.search = async (req, res) => {
     let query = '';
     let countQuery = ''; // Total count query
     let params = [];
+
+    const isLetterMode = letterMode === 'true' || letterMode === true;
 
     if (!searchTerm) {
       // Arama terimi yoksa - Hepsini getir
@@ -93,11 +97,16 @@ exports.search = async (req, res) => {
       let selectClause = 'SELECT *';
 
       switch (searchMode) {
-        case 'startsWith':
-          // Normalize edilmiş ile başlayan (fuzzy YOK artık)
-          whereClause = `word_normalized LIKE normalize_word($1) || '%'`;
+        case 'startsWith': {
+          const wantsCaseSensitiveI = isLetterMode && ['I', 'İ'].includes(searchTerm);
+          if (wantsCaseSensitiveI) {
+            whereClause = `word LIKE $1 || '%'`;
+          } else {
+            whereClause = `word_normalized LIKE normalize_word($1) || '%'`;
+          }
           params = [searchTerm];
           break;
+        }
         case 'startsWithExact':
           // Tam eşleşme: Orijinal kelime ile başlayan (normalize YOK)
           whereClause = `word LIKE $1 || '%'`;
@@ -153,8 +162,10 @@ exports.search = async (req, res) => {
     }
 
     // Execute queries
-    console.log('Generated Query:', query);
-    console.log('Query Params:', params);
+    if (!isProd) {
+      console.log('Generated Query:', query);
+      console.log('Query Params:', params);
+    }
 
     const result = await pool.query(query, params);
 

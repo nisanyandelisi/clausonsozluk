@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import api from './utils/api';
 
 // Normalizasyon fonksiyonu
 const normalizeWord = (word) => {
@@ -21,10 +21,6 @@ const normalizeWord = (word) => {
     normalized = normalized.replaceAll(oldChar.toLowerCase(), newChar);
   }
   return normalized;
-};
-
-const removeAccents = (str) => {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
 const ALPHABET = ['Hepsi', 'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H', 'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'Y', 'Z'];
@@ -52,7 +48,6 @@ function App() {
   // Data state is now results only, not full load
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   // State
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,32 +67,18 @@ function App() {
   const [passcode, setPasscode] = useState('');
   const [editMessage, setEditMessage] = useState('');
 
-  // New Word Form State
-  const [newWordForm, setNewWordForm] = useState({
-    word: '',
-    meaning: '',
-    full_entry_text: '',
-    etymology_type: 'Basic',
-    cross_reference: '',
-    occurrence_number: 1
-  });
-
   // Filtreler
   const [searchMode, setSearchMode] = useState('contains');
   const [etymologyFilter, setEtymologyFilter] = useState('all');
   const [etymologyTypes, setEtymologyTypes] = useState([]); // Dynamic list
 
-  const [totalDictionaryCount, setTotalDictionaryCount] = useState(0);
-
   // Fetch Etymology Types and Stats on Mount
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const etymRes = await axios.get('http://localhost:3000/api/search/etymologies');
-        if (etymRes.data.success) setEtymologyTypes(etymRes.data.data);
+        const etymRes = await api.get('/api/search/etymologies');
+        if (etymRes.success) setEtymologyTypes(etymRes.data);
 
-        const statsRes = await axios.get('http://localhost:3000/api/search/statistics');
-        if (statsRes.data.success) setTotalDictionaryCount(statsRes.data.statistics.total_entries);
       } catch (err) {
         console.error("Veri yüklenemedi:", err);
       }
@@ -105,57 +86,9 @@ function App() {
     fetchInitialData();
   }, []);
 
-  // URL Check for Admin
-  useEffect(() => {
-    const checkAdmin = () => {
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      console.log('Checking Admin Access:', path, hash);
-
-      if (path.includes('/admin') || hash === '#admin') {
-        console.log('Admin Access Granted via URL');
-
-        // SessionStorage'dan passcode kontrol et
-        const savedPasscode = sessionStorage.getItem('adminPasscode');
-        if (savedPasscode === 'teneke') {
-          setAdminPasscode(savedPasscode);
-          setShowAdminPanel(true);
-        } else {
-          // Passcode yoksa sor
-          const inputPasscode = prompt('Admin Şifresi:');
-          if (inputPasscode === 'teneke') {
-            sessionStorage.setItem('adminPasscode', inputPasscode);
-            setAdminPasscode(inputPasscode);
-            setShowAdminPanel(true);
-          } else if (inputPasscode !== null) {
-            alert('❌ Yanlış şifre!');
-          }
-        }
-      }
-    };
-
-    checkAdmin();
-    window.addEventListener('popstate', checkAdmin);
-    window.addEventListener('hashchange', checkAdmin); // Hash değişimlerini dinle
-
-    return () => {
-      window.removeEventListener('popstate', checkAdmin);
-      window.removeEventListener('hashchange', checkAdmin);
-    };
-  }, []);
-
   // API'den Arama Yap
   const performSearch = async (page = 1) => {
-    // Admin Paneli Tetikleyicisi (Gizli)
-    if (searchTerm.trim().toLowerCase() === 'adminpaneli') {
-      console.log('🚀 Admin Paneli Tetiklendi (Arama Kutusu)');
-      setShowAdminPanel(true);
-      setSearchTerm(''); // Gizliliği korumak için temizle
-      return;
-    }
-
     setLoading(true);
-    setError(null); // Added setError(null)
     try {
       // Mobil cihazlarda 10, desktop'ta 15 sonuç
       const isMobile = window.innerWidth < 768;
@@ -175,13 +108,14 @@ function App() {
       if (!searchTerm && selectedLetter && selectedLetter !== 'Hepsi') {
         params.q = selectedLetter;
         params.searchMode = 'startsWith';
+        params.letterMode = true;
       }
       // Hepsi seçiliyse params.q boş kalır, backend hepsini getirir (paginated)
 
-      const res = await axios.get('http://localhost:3000/api/search', { params });
-      setResults(res.data.results || []);
-      setTotalPages(res.data.total_pages || 1);
-      setTotalResults(res.data.total || 0);
+      const res = await api.get('/api/search', { params });
+      setResults(res.results || []);
+      setTotalPages(res.total_pages || 1);
+      setTotalResults(res.total || 0);
       setCurrentPage(page);
     } catch (err) {
       console.error("Arama hatası:", err);
@@ -256,7 +190,7 @@ function App() {
 
   // Admin paneli açıldığında raporları otomatik çek
   useEffect(() => {
-    if (showAdminPanel && adminPasscode === 'teneke') {
+    if (showAdminPanel && adminPasscode) {
       fetchAdminReports();
     }
   }, [showAdminPanel, adminPasscode]);
@@ -288,13 +222,13 @@ function App() {
         return;
       }
 
-      const res = await axios.post('http://localhost:3000/api/reports', {
+      const res = await api.post('/api/reports', {
         word_id: selectedWord.id,
         word_text: selectedWord.word,
         ...reportForm
       });
 
-      if (res.data.success) {
+      if (res.success) {
         setReportMessage('✅ Raporunuz başarıyla gönderildi. Teşekkür ederiz!');
         setTimeout(() => {
           setIsReportMode(false);
@@ -310,7 +244,7 @@ function App() {
   // Hızlı Rapor: "Bu Entry'de Hata Var"
   const handleQuickReport = async () => {
     try {
-      const res = await axios.post('http://localhost:3000/api/reports', {
+      const res = await api.post('/api/reports', {
         word_id: selectedWord.id,
         word_text: selectedWord.word,
         error_types: ['Entry Hatası'],
@@ -318,7 +252,7 @@ function App() {
         description: 'Hızlı rapor: Bu entry\'de hata var'
       });
 
-      if (res.data.success) {
+      if (res.success) {
         setReportMessage('✅ Hızlı rapor gönderildi!');
         setTimeout(() => setReportMessage(''), 2000);
       }
@@ -330,11 +264,11 @@ function App() {
 
   const fetchAdminReports = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/reports/admin', {
-        params: { passcode: adminPasscode }
+      const res = await api.get('/api/reports/admin', {
+        headers: { 'x-admin-passcode': adminPasscode }
       });
-      if (res.data.success) {
-        setAdminReports(res.data.data);
+      if (res.success) {
+        setAdminReports(res.data);
       }
     } catch (err) {
       alert('Erişim reddedildi veya hata oluştu.');
@@ -343,13 +277,14 @@ function App() {
 
   const handleUpdate = async () => {
     try {
-      const res = await axios.put(`http://localhost:3000/api/search/admin/word/${editForm.id}`, {
+      const res = await api.put(`/api/search/admin/word/${editForm.id}`, {
         ...editForm,
-        passcode,
         word_normalized: normalizeWord(editForm.word) // Normalizasyonu güncelle
+      }, {
+        headers: { 'x-admin-passcode': passcode }
       });
 
-      if (res.data.success) {
+      if (res.success) {
         setEditMessage('✅ Başarıyla güncellendi!');
 
         // Listeyi güncelle
@@ -369,44 +304,12 @@ function App() {
     }
   };
 
-  const handleAddWord = async () => {
-    try {
-      const res = await axios.post('http://localhost:3000/api/search/admin/word', {
-        ...newWordForm,
-        passcode,
-        word_normalized: normalizeWord(newWordForm.word)
-      });
-
-      if (res.data.success) {
-        setAdminMessage('✅ Yeni kelime başarıyla eklendi!');
-
-        // Formu temizle
-        setNewWordForm({
-          word: '',
-          meaning: '',
-          full_entry_text: '',
-          etymology_type: 'Basic',
-          cross_reference: '',
-          occurrence_number: 1
-        });
-
-        // Admin rapor listesini yenile
-        if (showAdminPanel) fetchAdminReports();
-
-        setTimeout(() => setAdminMessage(''), 3000);
-      }
-    } catch (err) {
-      console.error('Add Word Error:', err);
-      setAdminMessage('❌ Hata: ' + (err.response?.data?.error || err.message));
-    }
-  };
-
   const handleEditFromReport = async (report) => {
     try {
       // Kelimeyi word_id'den çek
-      const res = await axios.get(`http://localhost:3000/api/search/word/${report.word_id}`);
-      if (res.data.success) {
-        setEditForm(res.data.data);
+      const res = await api.get(`/api/search/word/${report.word_id}`);
+      if (res.success) {
+        setEditForm(res.data);
         setSelectedReport(report);
         setEditMessage('');
       }
@@ -418,19 +321,21 @@ function App() {
 
   const handleUpdateFromReport = async () => {
     try {
-      const res = await axios.put(`http://localhost:3000/api/search/admin/word/${editForm.id}`, {
+      const res = await api.put(`/api/search/admin/word/${editForm.id}`, {
         ...editForm,
-        passcode,
         word_normalized: normalizeWord(editForm.word)
+      }, {
+        headers: { 'x-admin-passcode': passcode }
       });
 
-      if (res.data.success) {
+      if (res.success) {
         setEditMessage('✅ Başarıyla güncellendi!');
 
         // Rapor durumunu 'reviewed' yap
-        await axios.put(`http://localhost:3000/api/reports/admin/${selectedReport.id}`, {
-          status: 'reviewed',
-          passcode
+        await api.put(`/api/reports/admin/${selectedReport.id}`, {
+          status: 'reviewed'
+        }, {
+          headers: { 'x-admin-passcode': passcode }
         });
 
         // Raporları yenile
@@ -454,8 +359,8 @@ function App() {
     }
 
     try {
-      await axios.delete(`http://localhost:3000/api/reports/admin/${reportId}`, {
-        data: { passcode: adminPasscode }
+      await api.delete(`/api/reports/admin/${reportId}`, {
+        headers: { 'x-admin-passcode': adminPasscode }
       });
 
       setAdminMessage('✅ Rapor silindi');
@@ -596,8 +501,8 @@ function App() {
               {/* Random Button */}
               <button
                 onClick={async () => {
-                  const res = await axios.get('http://localhost:3000/api/search/random');
-                  if (res.data.success) setSelectedWord(res.data.data);
+                  const res = await api.get('/api/search/random');
+                  if (res.success) setSelectedWord(res.data);
                 }}
                 className="w-full md:w-auto px-6 py-2 bg-ink-800 text-parchment-50 rounded-lg hover:bg-ink-700 transition-colors font-sans font-medium flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
               >
@@ -941,6 +846,33 @@ function App() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-grow">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-6">
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-semibold text-ink-700 mb-1">Admin Passcode</label>
+                  <input
+                    type="password"
+                    value={adminPasscode}
+                    onChange={(e) => {
+                      setAdminPasscode(e.target.value);
+                      setPasscode(e.target.value);
+                    }}
+                    className="w-full p-2 border rounded"
+                    placeholder="Yalnızca admin için"
+                  />
+                </div>
+                <button
+                  onClick={fetchAdminReports}
+                  className="px-4 py-2 bg-maroon-600 text-white rounded shadow hover:bg-maroon-700"
+                >
+                  Raporları Getir
+                </button>
+              </div>
+
+              {adminMessage && (
+                <div className="mb-4 p-3 rounded bg-parchment-100 border border-parchment-300 text-ink-700 font-semibold">
+                  {adminMessage}
+                </div>
+              )}
 
               {/* Rapor Listesi */}
               <div className="mb-8">
@@ -1142,22 +1074,7 @@ function App() {
       <footer style={{ fontSize: '14px' }} className="py-6 text-center text-ink-300 border-t border-parchment-200 mt-auto">
         <p>&copy; 2025 aristokies clauson sözlük. bazı hakları saklıdır bazıları değil.</p>
         <button
-          onClick={() => {
-            const savedPasscode = sessionStorage.getItem('adminPasscode');
-            if (savedPasscode === 'teneke') {
-              setAdminPasscode(savedPasscode);
-              setShowAdminPanel(true);
-            } else {
-              const inputPasscode = prompt('Admin Şifresi:');
-              if (inputPasscode === 'teneke') {
-                sessionStorage.setItem('adminPasscode', inputPasscode);
-                setAdminPasscode(inputPasscode);
-                setShowAdminPanel(true);
-              } else if (inputPasscode !== null) {
-                alert('❌ Yanlış şifre!');
-              }
-            }
-          }}
+          onClick={() => setShowAdminPanel(true)}
           className="mt-4 px-6 py-3 bg-maroon-600 text-white text-base font-semibold rounded-lg hover:bg-maroon-700 shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
         >
           🔐 Admin Girişi

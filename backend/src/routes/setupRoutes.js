@@ -4,6 +4,38 @@ const { pool } = require('../config/database');
 const fs = require('fs');
 const path = require('path');
 
+const isProd = process.env.NODE_ENV === 'production';
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
+const setupAllowed = process.env.ALLOW_SETUP_ROUTES === 'true' || !isProd;
+
+const requireSetupAccess = (req, res, next) => {
+  if (!setupAllowed) {
+    return res.status(403).json({
+      success: false,
+      error: 'Setup endpointleri bu ortamda kapalı.'
+    });
+  }
+
+  if (!ADMIN_PASSCODE) {
+    return res.status(503).json({
+      success: false,
+      error: 'Admin erişimi devre dışı (passcode tanımlı değil).'
+    });
+  }
+
+  const provided = req.headers['x-admin-passcode'] || req.body?.passcode;
+  if (!provided || provided !== ADMIN_PASSCODE) {
+    return res.status(403).json({
+      success: false,
+      error: 'Yetkisiz erişim.'
+    });
+  }
+
+  return next();
+};
+
+router.use(requireSetupAccess);
+
 // SADECE 1 KERE ÇALIŞTIR - Schema yükle
 router.post('/init-schema', async (req, res) => {
   try {
